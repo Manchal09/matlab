@@ -1,0 +1,41 @@
+clc;
+clear;
+
+N = 1e6; % Number of bits
+snr_db = 0:2:60; % SNR range
+ber = zeros(size(snr_db));
+
+for i = 1:length(snr_db)
+    
+    % Generate random bits
+    bits = randi([0 1], 1, N);
+    
+    % BPSK Modulation
+    tx = 2*bits - 1;
+    
+    % Rayleigh channel
+    h = (randn(1,N) + 1j*randn(1,N))/sqrt(2);
+    
+    % Noise
+    snr_linear = 10^(snr_db(i)/10);
+    noise = (randn(1,N) + 1j*randn(1,N))/sqrt(2*snr_linear);
+    
+    % Transmit through channel
+    rx = h .* tx + noise;
+    
+    % Equalization
+    rx_eq = rx ./ h;
+    
+    % Detection
+    bits_hat = real(rx_eq) > 0;
+    
+    % BER calculation
+    ber(i) = sum(bits ~= bits_hat)/N;
+end
+
+% Plot
+semilogy(snr_db, ber, 'r-o','LineWidth',2);
+grid on;
+xlabel('SNR (dB)');
+ylabel('BER');
+title('BER vs SNR for BPSK over Rayleigh Fading');
