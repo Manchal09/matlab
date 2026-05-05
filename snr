@@ -1,0 +1,85 @@
+clc;
+clear;
+close all;
+
+%% ================= PARAMETERS =================
+n = 1e5;                 
+SNRdB = 0:1:20;          
+K = 10;                  
+
+%% ================= BIT GENERATION =================
+bits = randi([0 1],1,n);     
+bpsk = 2*bits - 1;           
+
+%% ================= PREALLOCATION =================
+ber_A = zeros(size(SNRdB));
+ber_R = zeros(size(SNRdB));
+ber_Ric = zeros(size(SNRdB));
+
+berth_A = zeros(size(SNRdB));
+berth_R = zeros(size(SNRdB));
+berth_Ric = zeros(size(SNRdB));
+
+%% ================= MAIN LOOP =================
+for idx = 1:length(SNRdB)
+
+    snr = 10^(SNRdB(idx)/10);
+    noise_std = sqrt(1/(2*snr));
+
+    %% ===== AWGN =====
+    noise = noise_std * randn(1,n);
+    y_awgn = bpsk + noise;
+
+    det_awgn = (y_awgn >= 0);
+    ber_A(idx) = sum(xor(det_awgn,bits))/n;
+    berth_A(idx) = 0.5 * erfc(sqrt(snr));
+
+    %% ===== Rayleigh =====
+    h_ray = (randn(1,n) + 1i*randn(1,n))/sqrt(2);
+    noise = noise_std * (randn(1,n) + 1i*randn(1,n));
+
+    y_ray = h_ray .* bpsk + noise;
+    y_ray_eq = y_ray ./ h_ray;
+
+    det_ray = real(y_ray_eq) >= 0;
+    ber_R(idx) = sum(xor(det_ray,bits))/n;
+    berth_R(idx) = 0.5*(1 - sqrt(snr/(1+snr)));
+
+    %% ===== Rician =====
+    s = sqrt(K/(K+1));
+    sigma = sqrt(1/(2*(K+1)));
+
+    h_ric = (sigma*randn(1,n) + s) + 1i*(sigma*randn(1,n));
+    noise = noise_std * (randn(1,n) + 1i*randn(1,n));
+
+    y_ric = h_ric .* bpsk + noise;
+    y_ric_eq = y_ric ./ h_ric;
+
+    det_ric = real(y_ric_eq) >= 0;
+    ber_Ric(idx) = sum(xor(det_ric,bits))/n;
+    berth_Ric(idx) = 0.5*erfc(sqrt((K*snr)/(K+snr)));
+
+end
+
+%% ================= COMBINED COLORED PLOT =================
+figure;
+
+semilogy(SNRdB, ber_A,    'o-','Color',[0 0.447 0.741],'LineWidth',2); hold on;  % Blue
+semilogy(SNRdB, berth_A,  '--','Color',[0.850 0.325 0.098],'LineWidth',2);      % Orange
+
+semilogy(SNRdB, ber_R,    's-','Color',[0.466 0.674 0.188],'LineWidth',2);      % Green
+semilogy(SNRdB, berth_R,  '--','Color',[0.494 0.184 0.556],'LineWidth',2);      % Purple
+
+semilogy(SNRdB, ber_Ric,  '^-','Color',[0.929 0.694 0.125],'LineWidth',2);      % Yellow
+semilogy(SNRdB, berth_Ric,'--','Color',[0.301 0.745 0.933],'LineWidth',2);      % Cyan
+
+grid on;
+axis([0 20 1e-5 1]);
+
+xlabel('SNR (dB)');
+ylabel('Bit Error Rate');
+title('BPSK BER Performance in AWGN, Rayleigh and Rician Channels');
+
+legend('Sim AWGN','Theory AWGN', ...
+       'Sim Rayleigh','Theory Rayleigh', ...
+       'Sim Rician','Theory Rician');
