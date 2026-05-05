@@ -1,0 +1,64 @@
+clc;
+clear;
+close all;
+% -------------------------------------------------
+% PARAMETERS
+% -------------------------------------------------
+num_users = 3; % Number of users
+data_len = 6; % Number of bits per user
+chip_len = 8; % Spreading factor (must be power of 2)
+% -------------------------------------------------
+% GENERATE RANDOM DATA (BPSK)
+% -------------------------------------------------
+data = randi([0 1], num_users, data_len);
+data(data==0) = -1; % Convert 0 to -1
+disp('Original Data:');
+disp(data);
+% -------------------------------------------------
+% GENERATE WALSH (ORTHOGONAL) CODES
+% -------------------------------------------------
+H = hadamard(chip_len); % Generate Walsh matrix
+codes = H(1:num_users,:); % Assign one code per user
+disp('Spreading Codes:');
+disp(codes);
+spread_signals = zeros(num_users, data_len*chip_len);
+for i = 1:num_users
+spread_signals(i,:) = kron(data(i,:), codes(i,:));
+end
+% -------------------------------------------------
+% CHANNEL (ALL USERS TRANSMIT SIMULTANEOUSLY)
+% -------------------------------------------------
+composite_signal = sum(spread_signals,1);
+% -------------------------------------------------
+% CDMA RECEIVER (DESPREADING)
+% -------------------------------------------------
+recovered_data = zeros(num_users, data_len);
+% Reshape composite signal into bit-wise matrix
+reshaped_signal = reshape(composite_signal, chip_len, data_len)';
+for i = 1:num_users
+% Repeat spreading code to match matrix size
+code_matrix = repmat(codes(i,:), data_len, 1);
+% Multiply and sum chips
+despread = reshaped_signal .* code_matrix;
+recovered_data(i,:) = sign(sum(despread,2))';
+end
+disp('Recovered Data:');
+disp(recovered_data);
+figure;
+subplot(4,1,1)
+plot(spread_signals(1,:),'LineWidth',1.5);
+title('User 1 Spread Signal');
+grid on;
+subplot(4,1,2)
+plot(spread_signals(2,:),'LineWidth',1.5);
+title('User 2 Spread Signal');
+grid on;
+subplot(4,1,3)
+plot(spread_signals(3,:),'LineWidth',1.5);
+title('User 3 Spread Signal');
+grid on;
+subplot(4,1,4)
+plot(composite_signal,'LineWidth',1.5);
+title('Composite CDMA Signal');
+grid on;
+sgtitle('Simulation of CDMA Multiple Access Technique');
